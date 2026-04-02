@@ -1,0 +1,514 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="家族カレンダー">
+<meta name="theme-color" content="#1a1a2e">
+<link rel="manifest" href="manifest.json">
+<title>家族カレンダー</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;}
+:root{--app-bg:#f5f5f5;--cell-bg:#ffffff;--cell-border:#e0e0e0;--main-bg:#ffffff;}
+html,body{height:100%;overflow:hidden;font-family:-apple-system,BlinkMacSystemFont,'Hiragino Sans','Helvetica Neue',sans-serif;background:var(--app-bg);}
+#app{max-width:480px;margin:0 auto;height:100vh;height:100dvh;background:var(--main-bg);display:flex;flex-direction:column;position:relative;}
+.header{background:#1a1a2e;color:#fff;padding:12px 16px 10px;padding-top:calc(env(safe-area-inset-top,0px) + 12px);flex-shrink:0;}
+.header-top{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;}
+.header-title{font-size:16px;font-weight:600;}
+.hnav{display:flex;gap:6px;}
+.nav-btn{background:rgba(255,255,255,0.15);border:none;color:#fff;padding:5px 12px;border-radius:16px;font-size:12px;cursor:pointer;}
+.nav-btn.active{background:rgba(255,255,255,0.4);}
+.mnav{display:flex;align-items:center;gap:8px;}
+.mnav button{background:none;border:none;color:#fff;font-size:22px;cursor:pointer;padding:0 6px;line-height:1;}
+.mlbl{font-size:13px;min-width:100px;text-align:center;}
+.legend{display:flex;gap:10px;flex-wrap:wrap;margin-top:6px;}
+.ldot{width:8px;height:8px;border-radius:50%;flex-shrink:0;}
+.litem{display:flex;align-items:center;gap:4px;font-size:10px;color:rgba(255,255,255,0.85);}
+.main{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:8px;}
+.wblock{margin-bottom:10px;}
+.wlbl{font-size:10px;color:#999;padding:3px 2px 4px;font-weight:600;}
+.drow{display:grid;grid-template-columns:repeat(7,1fr);gap:3px;}
+.dcell{border:0.5px solid var(--cell-border);border-radius:6px;padding:4px 3px;min-height:118px;cursor:pointer;background:var(--cell-bg);}
+.dcell:active{opacity:0.85;}
+.dcell.today{border:2px solid #378ADD;}
+.dnum{font-size:15px;font-weight:700;color:#444;margin-bottom:4px;text-align:center;}
+.dnum.sun{color:#c0392b;}
+.dnum.sat{color:#378ADD;}
+.dcell.today .dnum{color:#185FA5;font-weight:700;}
+.chip{font-size:9px;padding:2px 3px;border-radius:3px;margin-bottom:1px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:block;line-height:1.35;}
+.modal-bg{position:absolute;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.5);display:flex;align-items:flex-end;z-index:100;}
+.modal{background:#fff;border-radius:20px 20px 0 0;padding:16px;padding-bottom:calc(env(safe-area-inset-bottom,0px) + 16px);width:100%;max-height:88vh;overflow-y:auto;-webkit-overflow-scrolling:touch;}
+.mhd{display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;}
+.mttl{font-size:15px;font-weight:700;color:#1a1a2e;}
+.xbtn{background:#f0f0f0;border:none;font-size:16px;color:#666;cursor:pointer;width:30px;height:30px;border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+.ecard{border-radius:10px;padding:10px 12px;margin-bottom:8px;border-left:3px solid;}
+.ename{font-size:10px;color:#888;margin-bottom:2px;}
+.etitle{font-size:14px;font-weight:600;margin-bottom:4px;}
+.ememo{font-size:12px;color:#666;line-height:1.5;}
+.edel{font-size:11px;color:#999;margin-top:6px;padding:4px 10px;border:0.5px solid #ddd;border-radius:4px;background:none;cursor:pointer;}
+.addrow{display:flex;align-items:center;justify-content:center;padding:12px;border-radius:10px;border:1.5px dashed #ccc;color:#888;font-size:13px;cursor:pointer;margin-top:6px;}
+.flbl{font-size:11px;color:#888;margin-bottom:5px;font-weight:600;display:block;}
+.fsec{margin-bottom:14px;}
+.mchips{display:flex;gap:6px;flex-wrap:wrap;}
+.mchip{padding:7px 16px;border-radius:20px;font-size:13px;border:1.5px solid #ddd;color:#666;background:#fff;cursor:pointer;}
+.slist{display:flex;flex-direction:column;gap:6px;max-height:200px;overflow-y:auto;}
+.sitem{padding:10px 12px;border-radius:8px;font-size:13px;border:1.5px solid #ddd;color:#333;cursor:pointer;display:flex;justify-content:space-between;align-items:center;background:#fff;text-align:left;width:100%;}
+.stlbl{font-size:10px;color:#999;}
+.txtin{width:100%;border:1.5px solid #ddd;border-radius:8px;padding:10px 12px;font-size:14px;color:#333;background:#fff;-webkit-appearance:none;outline:none;font-family:inherit;}
+.txtin:focus{border-color:#1a1a2e;}
+.memoin{width:100%;border:1.5px solid #ddd;border-radius:8px;padding:10px;font-size:13px;color:#333;background:#fff;min-height:70px;resize:none;-webkit-appearance:none;outline:none;font-family:inherit;}
+.subbtn{width:100%;padding:14px;background:#1a1a2e;color:#fff;border:none;border-radius:12px;font-size:14px;font-weight:600;cursor:pointer;margin-top:8px;}
+.secbtn{width:100%;padding:12px;background:#fff;color:#333;border:1.5px solid #ddd;border-radius:12px;font-size:13px;cursor:pointer;margin-top:8px;font-family:inherit;}
+.sbody{padding:14px;}
+.stitle{font-size:11px;font-weight:700;color:#555;border-bottom:1px solid #eee;padding-bottom:6px;margin-bottom:10px;letter-spacing:0.5px;}
+.msetrow{display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid #f0f0f0;}
+.csw{width:22px;height:22px;border-radius:50%;flex-shrink:0;}
+.msetname{font-size:14px;color:#333;flex:1;font-weight:500;}
+.copts{display:flex;gap:6px;flex-wrap:wrap;}
+.copt{width:22px;height:22px;border-radius:50%;border:2px solid transparent;cursor:pointer;}
+.copt.sel{border-color:#333;}
+.mtabrow{display:flex;gap:6px;margin-bottom:12px;flex-wrap:wrap;}
+.mtab{padding:5px 14px;border-radius:20px;font-size:12px;border:1.5px solid #ddd;background:#fff;color:#888;cursor:pointer;font-family:inherit;}
+.stag{padding:5px 10px;border-radius:20px;font-size:12px;display:inline-flex;align-items:center;gap:4px;}
+.stagdel{cursor:pointer;font-size:14px;background:none;border:none;line-height:1;padding:0;opacity:0.7;}
+.addshrow{display:flex;gap:6px;margin-bottom:8px;}
+.addshrow input{flex:1;border:1.5px solid #ddd;border-radius:8px;padding:9px 10px;font-size:13px;background:#fff;-webkit-appearance:none;outline:none;font-family:inherit;}
+.addshrow button{padding:9px 14px;background:#1a1a2e;color:#fff;border:none;border-radius:8px;font-size:12px;cursor:pointer;white-space:nowrap;font-family:inherit;}
+.timerow{display:flex;gap:8px;align-items:center;}
+.timerow input{flex:1;border:1.5px solid #ddd;border-radius:8px;padding:9px 10px;font-size:13px;background:#fff;-webkit-appearance:none;outline:none;font-family:inherit;}
+.bnav{display:flex;border-top:1px solid #eee;padding-bottom:env(safe-area-inset-bottom,0px);background:#fff;flex-shrink:0;}
+.bnav button{flex:1;padding:10px 0;background:none;border:none;font-size:10px;color:#aaa;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:2px;font-family:inherit;}
+.bnav button.act{color:#1a1a2e;font-weight:700;}
+.bico{font-size:20px;}
+.center{display:flex;align-items:center;justify-content:center;height:100%;color:#aaa;font-size:14px;}
+.empty{color:#aaa;font-size:13px;text-align:center;padding:12px 0;}
+</style>
+</head>
+<body>
+<div id="app">
+  <div class="header">
+    <div class="header-top">
+      <span class="header-title">家族カレンダー</span>
+      <div class="hnav" id="hnav">
+        <button class="nav-btn active" id="btn2w" onclick="setView('2w')">2週間</button>
+        <button class="nav-btn" id="btnmo" onclick="setView('month')">月</button>
+      </div>
+    </div>
+    <div class="mnav" id="mnav">
+      <button onclick="prevP()">‹</button>
+      <span class="mlbl" id="plbl"></span>
+      <button onclick="nextP()">›</button>
+    </div>
+    <div class="legend" id="legend"></div>
+  </div>
+  <div class="main" id="main"><div class="center">読み込み中...</div></div>
+  <div class="bnav">
+    <button class="act" id="bncal" onclick="gotoView('calendar')"><span class="bico">📅</span>カレンダー</button>
+    <button id="bnset" onclick="gotoView('settings')"><span class="bico">⚙️</span>設定</button>
+  </div>
+  <div id="modal"></div>
+</div>
+<script>
+const SB='https://ytvzudrrlsopoqvyenvq.supabase.co';
+const KEY='sb_publishable_k9Dq8L7v6zqrk7yQ_sRo7A_GhR-516N';
+
+async function api(path,method,body){
+  const res=await fetch(SB+'/rest/v1/'+path,{
+    method:method||'GET',
+    headers:{'Content-Type':'application/json','apikey':KEY,'Authorization':'Bearer '+KEY,'Prefer':'return=representation'},
+    body:body?JSON.stringify(body):undefined
+  });
+  const text=await res.text();
+  if(!res.ok) throw new Error(text);
+  return text?JSON.parse(text):[];
+}
+
+const COLS=['#E05C7A','#4A90D9','#43B89C','#F5A623','#9B6DD6','#E8734A','#5BAD6F'];
+const BG={'#E05C7A':'#FDEEF2','#4A90D9':'#EAF2FB','#43B89C':'#E5F7F3','#F5A623':'#FEF5E7','#9B6DD6':'#F3EEFE','#E8734A':'#FDEEE8','#5BAD6F':'#EAF6ED'};
+const TX={'#E05C7A':'#8C1A36','#4A90D9':'#1A4C8C','#43B89C':'#1A6655','#F5A623':'#7A4E00','#9B6DD6':'#4A1A8C','#E8734A':'#8C3A1A','#5BAD6F':'#1A5C2E'};
+const WD=['日','月','火','水','木','金','土'];
+const toYMD=d=>`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+const gbg=c=>BG[c]||'#EEEDFE';
+const gtx=c=>TX[c]||'#3C3489';
+
+let members=[],shifts=[],events=[],view='2w',offset=0,curView='calendar';
+
+function mcol(mid){
+  const m=members.find(x=>x.id===mid);
+  return m?m.color:COLS[0];
+}
+
+async function load(){
+  try{
+    const [m,s,e]=await Promise.all([
+      api('members?select=*&order=created_at'),
+      api('shift_patterns?select=*&order=created_at'),
+      api('events?select=*&order=date')
+    ]);
+    members=m; shifts=s; events=e;
+    renderLeg();
+    if(curView==='calendar') renderCal();
+    else renderSet();
+  }catch(err){
+    document.getElementById('main').innerHTML=`<div class="center" style="flex-direction:column;gap:12px;padding:20px;text-align:center">
+      <div style="color:#e74c3c;font-size:14px">接続エラー</div>
+      <div style="color:#aaa;font-size:12px">${err.message}</div>
+      <button onclick="load()" style="padding:8px 20px;background:#1a1a2e;color:#fff;border:none;border-radius:8px;cursor:pointer;font-size:13px">再試行</button>
+    </div>`;
+  }
+}
+
+function renderLeg(){
+  document.getElementById('legend').innerHTML=
+    members.map(m=>`<div class="litem"><div class="ldot" style="background:${m.color}"></div>${m.name}</div>`).join('');
+}
+
+function getRange(){
+  const now=new Date(); now.setHours(0,0,0,0);
+  if(view==='2w'){
+    const s=new Date(now);
+    const dow=s.getDay();
+    s.setDate(s.getDate()-(dow===0?6:dow-1)+offset*14);
+    const e=new Date(s); e.setDate(e.getDate()+13);
+    return{start:s,weeks:2,label:`${s.getMonth()+1}/${s.getDate()} 〜 ${e.getMonth()+1}/${e.getDate()}`};
+  }else{
+    const base=new Date(now.getFullYear(),now.getMonth()+offset,1);
+    const dow=base.getDay();
+    const s=new Date(base);
+    s.setDate(s.getDate()-(dow===0?6:dow-1));
+    const lastDay=new Date(base.getFullYear(),base.getMonth()+1,0).getDate();
+    const weeks=Math.ceil((lastDay+(dow===0?6:dow-1))/7);
+    return{start:s,weeks,label:`${base.getFullYear()}年${base.getMonth()+1}月`};
+  }
+}
+
+function renderCal(){
+  const{start,weeks,label}=getRange();
+  document.getElementById('plbl').textContent=label;
+  const todayStr=toYMD(new Date());
+  let h='';
+  for(let w=0;w<weeks;w++){
+    const ws=new Date(start); ws.setDate(start.getDate()+w*7);
+    const we=new Date(ws); we.setDate(ws.getDate()+6);
+    h+=`<div class="wblock"><div class="wlbl">${ws.getMonth()+1}/${ws.getDate()} 〜 ${we.getMonth()+1}/${we.getDate()}</div><div class="drow">`;
+    for(let d=0;d<7;d++){
+      const day=new Date(ws); day.setDate(ws.getDate()+d);
+      const ds=toYMD(day); const dow=day.getDay();
+      const devs=events.filter(e=>e.date===ds);
+      h+=`<div class="dcell${ds===todayStr?' today':''}" onclick="openDay('${ds}')">`;
+      h+=`<div class="dnum${dow===0?' sun':dow===6?' sat':''}">${day.getDate()}</div>`;
+      devs.slice(0,8).forEach(ev=>{
+        const c=mcol(ev.member_id);
+        h+=`<span class="chip" style="background:${gbg(c)};color:${gtx(c)}">${ev.title}</span>`;
+      });
+      if(devs.length>6) h+=`<span style="font-size:8px;color:#bbb">+${devs.length-4}</span>`;
+      h+='</div>';
+    }
+    h+='</div></div>';
+  }
+  document.getElementById('main').innerHTML=h;
+}
+
+function openDay(ds){
+  const d=new Date(ds+'T00:00:00');
+  const lbl=`${d.getMonth()+1}月${d.getDate()}日（${WD[d.getDay()]}）`;
+  const devs=events.filter(e=>e.date===ds);
+  let h=devs.map(ev=>{
+    const mem=members.find(x=>x.id===ev.member_id);
+    const c=mem?mem.color:COLS[0];
+    return `<div class="ecard" style="background:${gbg(c)};border-left-color:${c}">
+      <div class="ename">${mem?mem.name:''}</div>
+      <div class="etitle" style="color:${gtx(c)}">${ev.title}</div>
+      ${ev.note?`<div class="ememo">${ev.note}</div>`:''}
+      <button class="edel" onclick="delEv('${ev.id}','${ds}')">削除</button>
+    </div>`;
+  }).join('');
+  if(!h) h='<div class="empty">予定なし</div>';
+  showModal(`
+    <div class="mhd"><span class="mttl">${lbl}</span><button class="xbtn" onclick="closeModal()">✕</button></div>
+    ${h}
+    <div class="addrow" onclick="openAdd('${ds}')">＋ 予定を追加</div>
+  `);
+}
+
+function openAdd(ds){
+  if(members.length===0){
+    alert('先に設定でメンバーを追加してください');
+    return;
+  }
+  const d=new Date(ds+'T00:00:00');
+  let selMid=members[0].id;
+  let selSid=null;
+
+  function mBtns(){
+    return members.map(m=>{
+      const c=m.color; const a=selMid===m.id;
+      return `<button class="mchip" style="background:${a?gbg(c):'#fff'};border-color:${a?c:'#ddd'};color:${a?gtx(c):'#666'}" onclick="pickM('${m.id}')">${m.name}</button>`;
+    }).join('');
+  }
+
+  function sItems(){
+    const ms=shifts.filter(s=>s.member_id===selMid);
+    if(!ms.length) return '<div class="empty" style="padding:8px 0">設定でシフトを登録できます</div>';
+    return ms.map(s=>{
+      const a=selSid===s.id; const sc=s.color||mcol(selMid);
+      return `<button class="sitem" style="background:${a?gbg(sc):'#fff'};border-color:${a?sc:'#ddd'}" onclick="pickS('${s.id}')">
+        <span>${s.label}</span>
+        <span class="stlbl">${[s.start_time,s.end_time].filter(Boolean).join(' 〜 ')}</span>
+      </button>`;
+    }).join('');
+  }
+
+  function re(){
+    const mb=document.getElementById('_mb');
+    const si=document.getElementById('_si');
+    if(mb) mb.innerHTML=mBtns();
+    if(si) si.innerHTML=sItems();
+  }
+
+  window.pickM=function(id){selMid=id;selSid=null;re();};
+  window.pickS=function(id){selSid=(selSid===id)?null:id;re();};
+
+  window.doAdd=async function(){
+    const mtEl=document.getElementById('_mt');
+    const mnEl=document.getElementById('_mn');
+    const manual=mtEl?mtEl.value.trim():'';
+    const title=selSid?(shifts.find(s=>s.id===selSid)||{}).label||'':manual;
+    const note=mnEl?mnEl.value.trim():'';
+    if(!title){alert('タイトルを入力またはシフトを選択してください');return;}
+    try{
+      await api('events','POST',{member_id:selMid,date:ds,title:title,note:note||null});
+      await load();
+      openDay(ds);
+    }catch(e){alert('登録エラー: '+e.message);}
+  };
+
+  showModal(`
+    <div class="mhd">
+      <span class="mttl">${d.getMonth()+1}月${d.getDate()}日の予定追加</span>
+      <button class="xbtn" onclick="openDay('${ds}')">✕</button>
+    </div>
+    <div class="fsec"><span class="flbl">メンバー</span><div class="mchips" id="_mb">${mBtns()}</div></div>
+    <div class="fsec"><span class="flbl">シフトから選ぶ</span><div class="slist" id="_si">${sItems()}</div></div>
+    <div class="fsec"><span class="flbl">または手入力</span><input id="_mt" class="txtin" placeholder="タイトルを入力"></div>
+    <div class="fsec"><span class="flbl">メモ（任意）</span><textarea id="_mn" class="memoin" placeholder="一言メモ..."></textarea></div>
+    <button class="subbtn" onclick="doAdd()">登録する</button>
+  `);
+}
+
+async function delEv(id,ds){
+  if(!confirm('削除しますか？'))return;
+  try{
+    await api('events?id=eq.'+id,'DELETE');
+    await load();
+    openDay(ds);
+  }catch(e){alert('削除エラー: '+e.message);}
+}
+
+
+
+
+
+let actMid='';
+function renderSet(){
+  document.getElementById('plbl').textContent='設定';
+  if(!actMid||!members.find(m=>m.id===actMid)) actMid=members.length>0?members[0].id:'';
+
+  function drawSet(){
+    const ms=shifts.filter(s=>s.member_id===actMid);
+    const html=`<div class="sbody">
+      <div class="stitle">メンバーと色</div>
+      ${members.length===0?'<div class="empty">メンバーが未登録です</div>':''}
+      ${members.map(m=>`
+        <div class="msetrow">
+          <div class="csw" style="background:${m.color}"></div>
+          <span class="msetname">${m.name}</span>
+          <div class="copts">${COLS.map(c=>`<button class="copt${m.color===c?' sel':''}" style="background:${c}" onclick="chCol('${m.id}','${c}')"></button>`).join('')}</div>
+          <button onclick="delMember('${m.id}')" style="background:none;border:none;cursor:pointer;font-size:18px;color:#ccc;padding:0 2px;flex-shrink:0">🗑</button>
+        </div>`).join('')}
+      <button class="secbtn" onclick="openAddM()">＋ メンバーを追加</button>
+
+      <div style="margin-top:20px">
+        <div class="stitle">シフトパターン</div>
+        ${members.length===0?'<div class="empty">先にメンバーを追加してください</div>':`
+          <div class="mtabrow">${members.map(m=>`<button class="mtab" style="${actMid===m.id?`background:${m.color};color:#fff;border-color:${m.color}`:''}" onclick="swTab('${m.id}')">${m.name}</button>`).join('')}</div>
+          <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px;min-height:28px">
+            ${ms.map(s=>`<span class="stag" style="background:${gbg(s.color||mcol(actMid))};color:${gtx(s.color||mcol(actMid))}">${s.label}<button class="stagdel" onclick="delSh('${s.id}')">×</button></span>`).join('')}
+            ${ms.length===0?'<span style="font-size:12px;color:#aaa">未登録</span>':''}
+          </div>
+          <div class="addshrow">
+            <input id="_sn" placeholder="シフト名（例：日勤）">
+            <button onclick="addSh()">追加</button>
+          </div>
+          <div class="timerow">
+            <input id="_ss" class="txtin" type="time">
+            <span style="color:#aaa;flex-shrink:0">〜</span>
+            <input id="_se" class="txtin" type="time">
+          </div>
+        `}
+      </div>
+
+      <div style="margin-top:20px">
+        <div class="stitle">背景テーマ</div>
+        <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:flex-start;padding-bottom:16px">
+          ${[
+            {id:'white',    label:'白',        swatch:'#ffffff'},
+            {id:'gray',     label:'グレー',    swatch:'#e4e4e4'},
+            {id:'mint',     label:'ミント',    swatch:'#d0ece4'},
+            {id:'peach',    label:'ピーチ',    swatch:'#f5ddd4'},
+            {id:'lavender', label:'ラベンダー',swatch:'#e0dcf0'},
+          ].map(t=>`<button onclick="setTheme('${t.id}')" style="display:flex;flex-direction:column;align-items:center;gap:5px;background:none;border:none;cursor:pointer;font-family:inherit">
+            <div style="width:44px;height:44px;border-radius:12px;background:${t.swatch};border:2.5px solid ${curTheme===t.id?'#1a1a2e':'#ddd'}"></div>
+            <span style="font-size:11px;color:${curTheme===t.id?'#1a1a2e':'#999'};font-weight:${curTheme===t.id?'700':'400'}">${t.label}</span>
+          </button>`).join('')}
+        </div>
+      </div>
+    </div>`;
+    document.getElementById('main').innerHTML=html;
+  }
+
+  window.swTab=function(id){actMid=id;drawSet();};
+
+  window.chCol=async function(mid,color){
+    try{
+      await api('members?id=eq.'+mid,'PATCH',{color:color});
+      await load();
+    }catch(e){alert('エラー: '+e.message);}
+  };
+
+  window.addSh=async function(){
+    const snEl=document.getElementById('_sn');
+    const ssEl=document.getElementById('_ss');
+    const seEl=document.getElementById('_se');
+    const lbl=snEl?snEl.value.trim():'';
+    const st=ssEl?ssEl.value:'';
+    const en=seEl?seEl.value:'';
+    if(!lbl){alert('シフト名を入力してください');return;}
+    if(!actMid){alert('メンバーを選択してください');return;}
+    try{
+      await api('shift_patterns','POST',{member_id:actMid,label:lbl,start_time:st||null,end_time:en||null,color:mcol(actMid)});
+      await load();
+    }catch(e){alert('シフト追加エラー: '+e.message);}
+  };
+
+  window.delSh=async function(id){
+    if(!confirm('このシフトを削除しますか？'))return;
+    try{
+      await api('shift_patterns?id=eq.'+id,'DELETE');
+      await load();
+    }catch(e){alert('エラー: '+e.message);}
+  };
+
+  window.delMember=async function(id){
+    if(!confirm('このメンバーを削除しますか？\n関連する予定・シフトも全て削除されます'))return;
+    try{
+      await api('members?id=eq.'+id,'DELETE');
+      await load();
+    }catch(e){alert('メンバー削除エラー: '+e.message);}
+  };
+
+  window.openAddM=function(){
+    let pc=COLS[0];
+    showModal(`
+      <div class="mhd"><span class="mttl">メンバーを追加</span><button class="xbtn" onclick="closeModal()">✕</button></div>
+      <div class="fsec">
+        <span class="flbl">名前</span>
+        <input id="_nm" class="txtin" placeholder="名前を入力（例：けいご）">
+      </div>
+      <div class="fsec">
+        <span class="flbl">色を選ぶ</span>
+        <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:6px">
+          ${COLS.map((c,i)=>`<button class="copt${i===0?' sel':''}" id="nc${i}" style="background:${c};width:32px;height:32px" onclick="pickNC('${c}',${i})"></button>`).join('')}
+        </div>
+      </div>
+      <button class="subbtn" onclick="doAddM()">追加する</button>
+    `);
+
+    window.pickNC=function(c,i){
+      pc=c;
+      COLS.forEach((_,j)=>{
+        const b=document.getElementById('nc'+j);
+        if(b) b.className='copt'+(j===i?' sel':'');
+        if(b) b.style.cssText=`background:${COLS[j]};width:32px;height:32px`;
+      });
+    };
+
+    window.doAddM=async function(){
+      const nmEl=document.getElementById('_nm');
+      const name=nmEl?nmEl.value.trim():'';
+      if(!name){alert('名前を入力してください');return;}
+      try{
+        const result=await api('members','POST',{name:name,color:pc});
+        await load();
+        closeModal();
+      }catch(e){alert('メンバー追加エラー: '+e.message);}
+    };
+  };
+
+  drawSet();
+}
+
+function gotoView(v){
+  curView=v;
+  document.getElementById('bncal').classList.toggle('act',v==='calendar');
+  document.getElementById('bnset').classList.toggle('act',v==='settings');
+  document.getElementById('hnav').style.display=v==='calendar'?'flex':'none';
+  document.getElementById('legend').style.display=v==='calendar'?'flex':'none';
+  closeModal();
+  if(v==='calendar') renderCal();
+  else renderSet();
+}
+
+function setView(v){
+  view=v; offset=0;
+  document.getElementById('btn2w').classList.toggle('active',v==='2w');
+  document.getElementById('btnmo').classList.toggle('active',v==='month');
+  renderCal();
+}
+function prevP(){offset--;if(curView==='calendar')renderCal();}
+function nextP(){offset++;if(curView==='calendar')renderCal();}
+
+function showModal(h){
+  const el=document.getElementById('modal');
+  el.innerHTML=`<div class="modal-bg" id="mbg"><div class="modal">${h}</div></div>`;
+  document.getElementById('mbg').addEventListener('click',function(e){
+    if(e.target===this) closeModal();
+  });
+}
+function closeModal(){
+  document.getElementById('modal').innerHTML='';
+}
+
+const THEMES={
+  white:  {appBg:'#f5f5f5', cellBg:'#ffffff', border:'#e0e0e0', mainBg:'#ffffff'},
+  gray:   {appBg:'#d0d0d0', cellBg:'#f0f0f0', border:'#c0c0c0', mainBg:'#e8e8e8'},
+  mint:   {appBg:'#d0ece4', cellBg:'#f0faf6', border:'#b0d8ca', mainBg:'#e8f5f0'},
+  peach:  {appBg:'#f5ddd4', cellBg:'#fff7f4', border:'#e8c4b4', mainBg:'#fdf0eb'},
+  lavender:{appBg:'#e0dcf0', cellBg:'#f8f6fc', border:'#c8c0e4', mainBg:'#f0eef8'},
+};
+let curTheme=localStorage.getItem('theme')||'white';
+
+function applyTheme(id){
+  const t=THEMES[id]||THEMES.white;
+  const r=document.documentElement.style;
+  r.setProperty('--app-bg',t.appBg);
+  r.setProperty('--cell-bg',t.cellBg);
+  r.setProperty('--cell-border',t.border);
+  r.setProperty('--main-bg',t.mainBg);
+}
+
+function setTheme(id){
+  curTheme=id;
+  localStorage.setItem('theme',id);
+  applyTheme(id);
+  if(curView==='settings') renderSet();
+}
+
+
+applyTheme(curTheme);
+load();
+</script>
+</body>
+</html>
