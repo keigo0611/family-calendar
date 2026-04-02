@@ -94,6 +94,7 @@ html,body{height:100%;overflow:hidden;font-family:-apple-system,BlinkMacSystemFo
       <div class="hnav" id="hnav">
         <button class="nav-btn active" id="btn2w" onclick="setView('2w')">2週間</button>
         <button class="nav-btn" id="btnmo" onclick="setView('month')">月</button>
+        <button class="nav-btn" id="btnstamp" onclick="toggleStamp()" style="margin-left:2px">登録</button>
       </div>
     </div>
     <div class="mnav" id="mnav">
@@ -102,6 +103,7 @@ html,body{height:100%;overflow:hidden;font-family:-apple-system,BlinkMacSystemFo
       <button onclick="nextP()">›</button>
     </div>
     <div class="legend" id="legend"></div>
+    <div id="stamp-bar" style="display:none;margin-top:6px;overflow-x:auto;white-space:nowrap;padding-bottom:2px"><span style="font-size:10px;color:rgba(255,255,255,0.7);margin-right:6px;vertical-align:middle">登録者:</span><span id="stamp-members"></span></div>
   </div>
   <div class="main" id="main"><div class="center">読み込み中...</div></div>
   <div class="bnav">
@@ -197,7 +199,7 @@ function renderCal(){
       const day=new Date(ws); day.setDate(ws.getDate()+d);
       const ds=toYMD(day); const dow=day.getDay();
       const devs=events.filter(e=>e.date===ds);
-      h+=`<div class="dcell${ds===todayStr?' today':''}" onclick="openDay('${ds}')">`;
+      h+=`<div class="dcell${ds===todayStr?' today':''}" onclick="handleCellTap('${ds}')" oncontextmenu="handleCellLong('${ds}');return false" ontouchstart="startLong('${ds}',event)" ontouchend="endLong()" ontouchmove="endLong()">`;
       h+=`<div class="dnum${dow===0?' sun':dow===6?' sat':''}">${day.getDate()}</div>`;
       devs.slice(0,8).forEach(ev=>{
         const c=mcol(ev.member_id);
@@ -478,14 +480,93 @@ function renderSet(){
   drawSet();
 }
 
+let stampMode=false,stampMid='',longTimer=null;
+
+function toggleStamp(){
+  stampMode=!stampMode;
+  const btn=document.getElementById('btnstamp');
+  const bar=document.getElementById('stamp-bar');
+  if(stampMode){
+    btn.style.background='rgba(255,220,50,0.5)';
+    btn.textContent='登録中';
+    bar.style.display='block';
+    stampMid=members.length>0?members[0].id:'';
+    renderStampMembers();
+  }else{
+    btn.style.background='rgba(255,255,255,0.1)';
+    btn.textContent='登録';
+    bar.style.display='none';
+  }
+}
+
+function renderStampMembers(){
+  const el=document.getElementById('stamp-members');
+  if(!el)return;
+  el.innerHTML=members.map(m=>{
+    const a=stampMid===m.id;
+    return `<button onclick="selectStampMember('${m.id}')" style="display:inline-block;margin-right:6px;padding:3px 10px;border-radius:14px;border:2px solid ${a?'#fff':'rgba(255,255,255,0.3)'};background:${a?m.color:'transparent'};color:#fff;font-size:11px;cursor:pointer;font-family:inherit;vertical-align:middle">${m.name}</button>`;
+  }).join('');
+}
+
+function selectStampMember(mid){stampMid=mid;renderStampMembers();}
+
+function handleCellTap(ds){
+  if(stampMode)openStampPanel(ds);
+  else openDay(ds);
+}
+function handleCellLong(ds){openDay(ds);}
+function startLong(ds){longTimer=setTimeout(()=>{endLong();openDay(ds);},500);}
+function endLong(){if(longTimer){clearTimeout(longTimer);longTimer=null;}}
+
+function openStampPanel(ds){
+  if(!stampMid){alert('登録者を選択してください');return;}
+  const d=new Date(ds+'T00:00:00');
+  const mem=members.find(m=>m.id===stampMid);
+  if(!mem)return;
+  const c=mem.color;
+  const ms=shifts.filter(s=>s.member_id===stampMid);
+  window.doStamp=async function(title){
+    try{
+      await api('events','POST',{member_id:stampMid,date:ds,title:title,note:null});
+      await load();
+      closeModal();
+    }catch(e){alert('登録エラー: '+e.message);}
+  };
+  window.doStampManual=async function(){
+    const v=(document.getElementById('_stitle')||{}).value?.trim();
+    if(!v){alert('タイトルを入力してください');return;}
+    await window.doStamp(v);
+  };
+  const shiftBtns=ms.map(s=>`
+    <button onclick="doStamp('${s.label}')" style="width:100%;padding:12px 14px;border-radius:10px;background:${gbg(c)};color:${gtx(c)};font-size:14px;font-weight:600;cursor:pointer;text-align:left;font-family:inherit;display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;border:none">
+      <span>${s.label}</span>
+      <span style="font-size:11px;opacity:0.7">${[s.start_time,s.end_time].filter(Boolean).join(' ~ ')}</span>
+    </button>`).join('');
+  showModal(`
+    <div class="mhd">
+      <span class="mttl" style="display:flex;align-items:center;gap:8px">
+        <span style="width:12px;height:12px;border-radius:50%;background:${c};display:inline-block;flex-shrink:0"></span>
+        ${mem.name} | ${d.getMonth()+1}/${d.getDate()}
+      </span>
+      <button class="xbtn" onclick="closeModal()">x</button>
+    </div>
+    ${ms.length===0?'<div class="empty">設定でシフトを登録してください</div>':shiftBtns}
+    <div style="display:flex;gap:8px;margin-top:8px">
+      <input id="_stitle" class="txtin" placeholder="手入力で登録..." style="flex:1">
+      <button onclick="doStampManual()" style="padding:10px 14px;background:#1a1a2e;color:#fff;border:none;border-radius:8px;font-size:13px;cursor:pointer;white-space:nowrap;font-family:inherit">登録</button>
+    </div>
+  `);
+}
+
 function gotoView(v){
   curView=v;
   document.getElementById('bncal').classList.toggle('act',v==='calendar');
   document.getElementById('bnset').classList.toggle('act',v==='settings');
   document.getElementById('hnav').style.display=v==='calendar'?'flex':'none';
   document.getElementById('legend').style.display=v==='calendar'?'flex':'none';
+  if(v!=='calendar'&&stampMode)toggleStamp();
   closeModal();
-  if(v==='calendar') renderCal();
+  if(v==='calendar')renderCal();
   else renderSet();
 }
 
