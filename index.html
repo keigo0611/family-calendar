@@ -319,35 +319,40 @@ function renderSet(){
   function drawSet(){
     const ms=shifts.filter(s=>s.member_id===actMid);
     const html=`<div class="sbody">
-      <div class="stitle">メンバーと色</div>
-      ${members.length===0?'<div class="empty">メンバーが未登録です</div>':''}
-      ${members.map(m=>`
-        <div class="msetrow">
-          <div class="csw" style="background:${m.color}"></div>
-          <span class="msetname">${m.name}</span>
-          <div class="copts">${COLS.map(c=>`<button class="copt${m.color===c?' sel':''}" style="background:${c}" onclick="chCol('${m.id}','${c}')"></button>`).join('')}</div>
-          <button onclick="delMember('${m.id}')" style="background:none;border:none;cursor:pointer;font-size:18px;color:#ccc;padding:0 2px;flex-shrink:0">🗑</button>
-        </div>`).join('')}
-      <button class="secbtn" onclick="openAddM()">＋ メンバーを追加</button>
+
+      <div class="stitle">シフトパターン</div>
+      ${members.length===0?'<div class="empty">先にメンバーを追加してください</div>':`
+        <div class="mtabrow">${members.map(m=>`<button class="mtab" style="${actMid===m.id?`background:${m.color};color:#fff;border-color:${m.color}`:''}" onclick="swTab('${m.id}')">${m.name}</button>`).join('')}</div>
+        <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px;min-height:28px">
+          ${ms.map(s=>`<span class="stag" style="background:${gbg(s.color||mcol(actMid))};color:${gtx(s.color||mcol(actMid))}">${s.label}<button class="stagdel" onclick="delSh('${s.id}')">×</button></span>`).join('')}
+          ${ms.length===0?'<span style="font-size:12px;color:#aaa">未登録</span>':''}
+        </div>
+        <div class="addshrow">
+          <input id="_sn" placeholder="シフト名（例：日勤）">
+          <button onclick="addSh()">追加</button>
+        </div>
+        <div class="timerow">
+          <input id="_ss" class="txtin" type="time">
+          <span style="color:#aaa;flex-shrink:0">〜</span>
+          <input id="_se" class="txtin" type="time">
+        </div>
+      `}
 
       <div style="margin-top:20px">
-        <div class="stitle">シフトパターン</div>
-        ${members.length===0?'<div class="empty">先にメンバーを追加してください</div>':`
-          <div class="mtabrow">${members.map(m=>`<button class="mtab" style="${actMid===m.id?`background:${m.color};color:#fff;border-color:${m.color}`:''}" onclick="swTab('${m.id}')">${m.name}</button>`).join('')}</div>
-          <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px;min-height:28px">
-            ${ms.map(s=>`<span class="stag" style="background:${gbg(s.color||mcol(actMid))};color:${gtx(s.color||mcol(actMid))}">${s.label}<button class="stagdel" onclick="delSh('${s.id}')">×</button></span>`).join('')}
-            ${ms.length===0?'<span style="font-size:12px;color:#aaa">未登録</span>':''}
-          </div>
-          <div class="addshrow">
-            <input id="_sn" placeholder="シフト名（例：日勤）">
-            <button onclick="addSh()">追加</button>
-          </div>
-          <div class="timerow">
-            <input id="_ss" class="txtin" type="time">
-            <span style="color:#aaa;flex-shrink:0">〜</span>
-            <input id="_se" class="txtin" type="time">
-          </div>
-        `}
+        <div class="stitle">メンバーと色</div>
+        <button class="secbtn" style="margin-bottom:12px" onclick="openAddM()">＋ メンバーを追加</button>
+        ${members.length===0?'<div class="empty">メンバーが未登録です</div>':''}
+        ${members.map((m,i)=>`
+          <div class="msetrow">
+            <div style="display:flex;flex-direction:column;gap:2px;margin-right:4px">
+              <button onclick="moveMember('${m.id}',-1)" style="background:none;border:none;cursor:pointer;font-size:12px;color:#bbb;padding:0;line-height:1;${i===0?'opacity:0.2;pointer-events:none':''}">▲</button>
+              <button onclick="moveMember('${m.id}',1)" style="background:none;border:none;cursor:pointer;font-size:12px;color:#bbb;padding:0;line-height:1;${i===members.length-1?'opacity:0.2;pointer-events:none':''}">▼</button>
+            </div>
+            <div class="csw" style="background:${m.color}"></div>
+            <span class="msetname" onclick="editMemberName('${m.id}','${m.name}')" style="cursor:pointer;border-bottom:1px dashed #ccc">${m.name}</span>
+            <div class="copts">${COLS.map(c=>`<button class="copt${m.color===c?' sel':''}" style="background:${c}" onclick="chCol('${m.id}','${c}')"></button>`).join('')}</div>
+            <button onclick="delMember('${m.id}')" style="background:none;border:none;cursor:pointer;font-size:18px;color:#ccc;padding:0 2px;flex-shrink:0">🗑</button>
+          </div>`).join('')}
       </div>
 
       <div style="margin-top:20px">
@@ -407,6 +412,29 @@ function renderSet(){
       await api('members?id=eq.'+id,'DELETE');
       await load();
     }catch(e){alert('メンバー削除エラー: '+e.message);}
+  };
+
+  window.moveMember=async function(id,dir){
+    const idx=members.findIndex(m=>m.id===id);
+    const newIdx=idx+dir;
+    if(newIdx<0||newIdx>=members.length) return;
+    const a=members[idx], b=members[newIdx];
+    const tmpName=a.name, tmpColor=a.color;
+    try{
+      await Promise.all([
+        api('members?id=eq.'+a.id,'PATCH',{name:b.name,color:b.color}),
+        api('members?id=eq.'+b.id,'PATCH',{name:tmpName,color:tmpColor})
+      ]);
+      await load();
+    }catch(e){alert('並び替えエラー: '+e.message);}
+  };
+
+  window.editMemberName=function(id,currentName){
+    const newName=prompt('名前を変更してください',currentName);
+    if(!newName||newName.trim()===''||newName.trim()===currentName) return;
+    api('members?id=eq.'+id,'PATCH',{name:newName.trim()})
+      .then(()=>load())
+      .catch(e=>alert('名前変更エラー: '+e.message));
   };
 
   window.openAddM=function(){
