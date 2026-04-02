@@ -28,16 +28,16 @@ html,body{height:100%;overflow:hidden;font-family:-apple-system,BlinkMacSystemFo
 .litem{display:flex;align-items:center;gap:4px;font-size:10px;color:rgba(255,255,255,0.85);}
 .main{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:8px;}
 .wblock{margin-bottom:10px;}
-.wlbl{font-size:10px;color:#999;padding:3px 2px 4px;font-weight:600;}
+.wlbl{font-size:11px;color:#444;padding:3px 2px 5px;font-weight:700;}
 .drow{display:grid;grid-template-columns:repeat(7,1fr);gap:3px;}
 .dcell{border:0.5px solid var(--cell-border);border-radius:6px;padding:4px 3px;min-height:158px;cursor:pointer;background:var(--cell-bg);}
 .dcell:active{opacity:0.85;}
-.dcell.today{border:2px solid #378ADD;}
-.dnum{font-size:15px;font-weight:700;color:#444;margin-bottom:4px;text-align:center;}
+.dcell.today{border:2px solid #e0392b;}
+.dnum{font-size:14px;font-weight:700;color:#333;margin-bottom:3px;text-align:center;}
 .dnum.sun{color:#c0392b;}
 .dnum.sat{color:#378ADD;}
-.dcell.today .dnum{color:#185FA5;font-weight:700;}
-.chip{font-size:9px;padding:2px 3px;border-radius:3px;margin-bottom:1px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:block;line-height:1.35;}
+.dcell.today .dnum{color:#e0392b;font-weight:700;}
+.chip{font-size:10px;padding:2px 4px;border-radius:3px;margin-bottom:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:block;line-height:1.4;font-weight:600;}
 .modal-bg{position:absolute;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.5);display:flex;align-items:flex-end;z-index:100;}
 .modal{background:#fff;border-radius:20px 20px 0 0;padding:16px;padding-bottom:calc(env(safe-area-inset-bottom,0px) + 16px);width:100%;max-height:88vh;overflow-y:auto;-webkit-overflow-scrolling:touch;}
 .mhd{display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;}
@@ -104,6 +104,7 @@ html,body{height:100%;overflow:hidden;font-family:-apple-system,BlinkMacSystemFo
     </div>
     <div class="legend" id="legend"></div>
     <div id="stamp-bar" style="display:none;margin-top:6px;overflow-x:auto;white-space:nowrap;padding-bottom:2px"><span style="font-size:10px;color:rgba(255,255,255,0.7);margin-right:6px;vertical-align:middle">登録者:</span><span id="stamp-members"></span></div>
+    <div id="filter-bar" style="margin-top:6px;overflow-x:auto;white-space:nowrap;padding-bottom:2px"><span style="font-size:10px;color:rgba(255,255,255,0.7);margin-right:4px;vertical-align:middle">絞込:</span><span id="filter-members"></span></div>
   </div>
   <div class="main" id="main"><div class="center">読み込み中...</div></div>
   <div class="bnav">
@@ -128,8 +129,8 @@ async function api(path,method,body){
 }
 
 const COLS=['#E05C7A','#4A90D9','#43B89C','#F5A623','#9B6DD6','#E8734A','#5BAD6F'];
-const BG={'#E05C7A':'#FDEEF2','#4A90D9':'#EAF2FB','#43B89C':'#E5F7F3','#F5A623':'#FEF5E7','#9B6DD6':'#F3EEFE','#E8734A':'#FDEEE8','#5BAD6F':'#EAF6ED'};
-const TX={'#E05C7A':'#8C1A36','#4A90D9':'#1A4C8C','#43B89C':'#1A6655','#F5A623':'#7A4E00','#9B6DD6':'#4A1A8C','#E8734A':'#8C3A1A','#5BAD6F':'#1A5C2E'};
+const BG={'#E05C7A':'#F5C0CE','#4A90D9':'#B8D8F8','#43B89C':'#A8E6D8','#F5A623':'#FCDEA0','#9B6DD6':'#D8C8F8','#E8734A':'#F8C4A8','#5BAD6F':'#B0E0BC'};
+const TX={'#E05C7A':'#7A0026','#4A90D9':'#0A3060','#43B89C':'#0A3D2E','#F5A623':'#5A3600','#9B6DD6':'#320A6E','#E8734A':'#6E2200','#5BAD6F':'#0A3D1C'};
 const WD=['日','月','火','水','木','金','土'];
 const toYMD=d=>`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
 const gbg=c=>BG[c]||'#EEEDFE';
@@ -165,6 +166,7 @@ async function load(){
 function renderLeg(){
   document.getElementById('legend').innerHTML=
     members.map(m=>`<div class="litem"><div class="ldot" style="background:${m.color}"></div>${m.name}</div>`).join('');
+  renderFilterMembers();
 }
 
 function getRange(){
@@ -172,16 +174,16 @@ function getRange(){
   if(view==='2w'){
     const s=new Date(now);
     const dow=s.getDay();
-    s.setDate(s.getDate()-(dow===0?6:dow-1)+offset*14);
+    s.setDate(s.getDate()-dow+offset*14);
     const e=new Date(s); e.setDate(e.getDate()+13);
     return{start:s,weeks:2,label:`${s.getMonth()+1}/${s.getDate()} 〜 ${e.getMonth()+1}/${e.getDate()}`};
   }else{
     const base=new Date(now.getFullYear(),now.getMonth()+offset,1);
     const dow=base.getDay();
     const s=new Date(base);
-    s.setDate(s.getDate()-(dow===0?6:dow-1));
+    s.setDate(s.getDate()-dow);
     const lastDay=new Date(base.getFullYear(),base.getMonth()+1,0).getDate();
-    const weeks=Math.ceil((lastDay+(dow===0?6:dow-1))/7);
+    const weeks=Math.ceil((lastDay+dow)/7);
     return{start:s,weeks,label:`${base.getFullYear()}年${base.getMonth()+1}月`};
   }
 }
@@ -203,9 +205,12 @@ function renderCal(){
       h+=`<div class="dnum${dow===0?' sun':dow===6?' sat':''}">${day.getDate()}</div>`;
       devs.slice(0,8).forEach(ev=>{
         const c=mcol(ev.member_id);
-        h+=`<span class="chip" style="background:${gbg(c)};color:${gtx(c)}">${ev.title}</span>`;
+        const isFiltered=filterMid&&ev.member_id!==filterMid;
+        const bg=isFiltered?'#f0f0f0':gbg(c);
+        const tx=isFiltered?'#ccc':gtx(c);
+        h+=`<span class="chip" style="background:${bg};color:${tx};cursor:pointer" onclick="event.stopPropagation();tapChip('${ev.id}','${ev.title}','${ev.date}')">${ev.title}</span>`;
       });
-      if(devs.length>6) h+=`<span style="font-size:8px;color:#bbb">+${devs.length-4}</span>`;
+      if(devs.length>8) h+=`<span style="font-size:8px;color:#bbb">+${devs.length-8}</span>`;
       h+='</div>';
     }
     h+='</div></div>';
@@ -280,6 +285,8 @@ function openAdd(ds){
     const title=selSid?(shifts.find(s=>s.id===selSid)||{}).label||'':manual;
     const note=mnEl?mnEl.value.trim():'';
     if(!title){alert('タイトルを入力またはシフトを選択してください');return;}
+    const already=events.find(e=>e.date===ds&&e.member_id===selMid&&e.title===title);
+    if(already){alert(`「${title}」はすでに登録済みです`);return;}
     try{
       await api('events','POST',{member_id:selMid,date:ds,title:title,note:note||null});
       await load();
@@ -480,7 +487,34 @@ function renderSet(){
   drawSet();
 }
 
-let stampMode=false,stampMid='',longTimer=null;
+let stampMode=false,stampMid='',longTimer=null,filterMid='';
+
+function tapChip(id,title,date){
+  if(confirm(`「${title}」を削除しますか？`)){
+    api('events?id=eq.'+id,'DELETE')
+      .then(()=>load())
+      .catch(e=>alert('削除エラー: '+e.message));
+  }
+}
+
+function setFilter(mid){
+  filterMid=filterMid===mid?'':mid;
+  renderFilterMembers();
+  renderCal();
+}
+
+function renderFilterMembers(){
+  const el=document.getElementById('filter-members');
+  if(!el)return;
+  const allActive=filterMid==='';
+  let btns='';
+  btns+=`<button onclick="setFilter('')" style="display:inline-block;margin-right:4px;padding:3px 8px;border-radius:12px;border:1px solid ${allActive?'#fff':'rgba(255,255,255,0.3)'};background:${allActive?'rgba(255,255,255,0.3)':'transparent'};color:#fff;font-size:9px;cursor:pointer;font-family:inherit">全員</button>`;
+  members.forEach(m=>{
+    const a=filterMid===m.id;
+    btns+=`<button onclick="setFilter('${m.id}')" style="display:inline-block;margin-right:4px;padding:3px 8px;border-radius:12px;border:1px solid ${a?'#fff':'rgba(255,255,255,0.3)'};background:${a?m.color:'transparent'};color:#fff;font-size:9px;cursor:pointer;font-family:inherit">${m.name}</button>`;
+  });
+  el.innerHTML=btns;
+}
 
 function toggleStamp(){
   stampMode=!stampMode;
@@ -526,6 +560,8 @@ function openStampPanel(ds){
   const c=mem.color;
   const ms=shifts.filter(s=>s.member_id===stampMid);
   window.doStamp=async function(title){
+    const already=events.find(e=>e.date===ds&&e.member_id===stampMid&&e.title===title);
+    if(already){alert(`「${title}」はすでに登録済みです`);return;}
     try{
       await api('events','POST',{member_id:stampMid,date:ds,title:title,note:null});
       await load();
@@ -534,8 +570,18 @@ function openStampPanel(ds){
   };
   window.doStampManual=async function(){
     const v=(document.getElementById('_stitle')||{}).value?.trim();
+    const st=(document.getElementById('_stime_s')||{}).value||'';
+    const en=(document.getElementById('_stime_e')||{}).value||'';
     if(!v){alert('タイトルを入力してください');return;}
-    await window.doStamp(v);
+    const timeStr=st&&en?` ${st}~${en}`:st?` ${st}`:'';
+    const title=v+timeStr;
+    const already=events.find(e=>e.date===ds&&e.member_id===stampMid&&e.title===title);
+    if(already){alert('同じ予定がすでに登録済みです');return;}
+    try{
+      await api('events','POST',{member_id:stampMid,date:ds,title:title,note:null});
+      await load();
+      closeModal();
+    }catch(e){alert('登録エラー: '+e.message);}
   };
   const shiftBtns=ms.map(s=>`
     <button onclick="doStamp('${s.label}')" style="width:100%;padding:12px 14px;border-radius:10px;background:${gbg(c)};color:${gtx(c)};font-size:14px;font-weight:600;cursor:pointer;text-align:left;font-family:inherit;display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;border:none">
@@ -551,9 +597,15 @@ function openStampPanel(ds){
       <button class="xbtn" onclick="closeModal()">x</button>
     </div>
     ${ms.length===0?'<div class="empty">設定でシフトを登録してください</div>':shiftBtns}
-    <div style="display:flex;gap:8px;margin-top:8px">
-      <input id="_stitle" class="txtin" placeholder="手入力で登録..." style="flex:1">
-      <button onclick="doStampManual()" style="padding:10px 14px;background:#1a1a2e;color:#fff;border:none;border-radius:8px;font-size:13px;cursor:pointer;white-space:nowrap;font-family:inherit">登録</button>
+    <div style="margin-top:10px;border-top:1px solid #eee;padding-top:10px">
+      <div style="font-size:11px;color:#999;margin-bottom:6px;font-weight:600">手入力で登録</div>
+      <input id="_stitle" class="txtin" placeholder="タイトル（例：通院）" style="margin-bottom:6px">
+      <div style="display:flex;gap:6px;align-items:center;margin-bottom:6px">
+        <input id="_stime_s" class="txtin" type="time" style="flex:1">
+        <span style="color:#aaa;flex-shrink:0;font-size:13px">〜</span>
+        <input id="_stime_e" class="txtin" type="time" style="flex:1">
+      </div>
+      <button onclick="doStampManual()" style="width:100%;padding:11px;background:#1a1a2e;color:#fff;border:none;border-radius:8px;font-size:13px;cursor:pointer;font-family:inherit;font-weight:600">登録する</button>
     </div>
   `);
 }
@@ -565,6 +617,7 @@ function gotoView(v){
   document.getElementById('hnav').style.display=v==='calendar'?'flex':'none';
   document.getElementById('legend').style.display=v==='calendar'?'flex':'none';
   if(v!=='calendar'&&stampMode)toggleStamp();
+  if(v!=='calendar'){filterMid='';}
   closeModal();
   if(v==='calendar')renderCal();
   else renderSet();
