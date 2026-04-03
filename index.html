@@ -44,10 +44,12 @@ html,body{height:100%;overflow:hidden;font-family:-apple-system,BlinkMacSystemFo
 .mttl{font-size:15px;font-weight:700;color:#1a1a2e;}
 .xbtn{background:#f0f0f0;border:none;font-size:16px;color:#666;cursor:pointer;width:30px;height:30px;border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
 .ecard{border-radius:10px;padding:10px 12px;margin-bottom:8px;border-left:3px solid;}
-.ename{font-size:10px;color:#888;margin-bottom:2px;}
-.etitle{font-size:14px;font-weight:600;margin-bottom:4px;}
-.ememo{font-size:12px;color:#666;line-height:1.5;}
+.ecard-new{border-radius:8px;padding:8px 10px;margin-bottom:6px;display:flex;align-items:center;gap:8px;cursor:pointer;}
+.ename{font-size:10px;color:#888;margin-bottom:2px;font-weight:600;}
+.etitle{font-size:13px;font-weight:700;margin-bottom:2px;}
+.ememo{font-size:11px;line-height:1.4;}
 .edel{font-size:11px;color:#999;margin-top:6px;padding:4px 10px;border:0.5px solid #ddd;border-radius:4px;background:none;cursor:pointer;}
+.edel-new{width:30px;height:30px;border-radius:6px;border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:14px;}
 .addrow{display:flex;align-items:center;justify-content:center;padding:12px;border-radius:10px;border:1.5px dashed #ccc;color:#888;font-size:13px;cursor:pointer;margin-top:6px;}
 .flbl{font-size:11px;color:#888;margin-bottom:5px;font-weight:600;display:block;}
 .fsec{margin-bottom:14px;}
@@ -102,9 +104,8 @@ html,body{height:100%;overflow:hidden;font-family:-apple-system,BlinkMacSystemFo
       <span class="mlbl" id="plbl"></span>
       <button onclick="nextP()">›</button>
     </div>
-    <div class="legend" id="legend"></div>
-    <div id="stamp-bar" style="display:none;margin-top:6px;overflow-x:auto;white-space:nowrap;padding-bottom:2px"><span style="font-size:10px;color:rgba(255,255,255,0.7);margin-right:6px;vertical-align:middle">登録者:</span><span id="stamp-members"></span></div>
-    <div id="filter-bar" style="margin-top:6px;overflow-x:auto;white-space:nowrap;padding-bottom:2px"><span style="font-size:10px;color:rgba(255,255,255,0.7);margin-right:4px;vertical-align:middle">絞込:</span><span id="filter-members"></span></div>
+    <div id="member-bar" style="margin-top:6px;overflow-x:auto;white-space:nowrap;padding-bottom:2px;display:flex;gap:4px;align-items:center"><span id="member-btns-hdr"></span></div>
+    <div id="stamp-bar" style="display:none;margin-top:4px;overflow-x:auto;white-space:nowrap;padding-bottom:2px"><span style="font-size:10px;color:rgba(255,255,255,0.6);margin-right:4px">登録者:</span><span id="stamp-members"></span></div>
   </div>
   <div class="main" id="main"><div class="center">読み込み中...</div></div>
   <div class="bnav">
@@ -164,9 +165,14 @@ async function load(){
 }
 
 function renderLeg(){
-  document.getElementById('legend').innerHTML=
-    members.map(m=>`<div class="litem"><div class="ldot" style="background:${m.color}"></div>${m.name}</div>`).join('');
-  renderFilterMembers();
+  const el=document.getElementById('member-btns-hdr');
+  if(!el)return;
+  let btns=`<button onclick="setFilter('')" style="display:inline-flex;align-items:center;gap:3px;margin-right:4px;padding:3px 8px;border-radius:14px;border:1.5px solid ${filterMid===''?'#fff':'rgba(255,255,255,0.3)'};background:${filterMid===''?'rgba(255,255,255,0.25)':'transparent'};color:#fff;font-size:10px;cursor:pointer;font-family:inherit;white-space:nowrap">全員</button>`;
+  members.forEach(m=>{
+    const a=filterMid===m.id;
+    btns+=`<button onclick="setFilter('${m.id}')" style="display:inline-flex;align-items:center;gap:4px;margin-right:4px;padding:3px 8px;border-radius:14px;border:1.5px solid ${a?'#fff':'rgba(255,255,255,0.3)'};background:${a?m.color+'55':'transparent'};color:#fff;font-size:10px;cursor:pointer;font-family:inherit;white-space:nowrap"><span style="width:7px;height:7px;border-radius:50%;background:${m.color};flex-shrink:0;display:inline-block"></span>${m.name}</button>`;
+  });
+  el.innerHTML=btns;
 }
 
 function getRange(){
@@ -221,23 +227,58 @@ function renderCal(){
 function openDay(ds){
   const d=new Date(ds+'T00:00:00');
   const lbl=`${d.getMonth()+1}月${d.getDate()}日（${WD[d.getDay()]}）`;
-  const devs=events.filter(e=>e.date===ds);
+  const sorted=members.flatMap(m=>events.filter(e=>e.date===ds&&e.member_id===m.id));
+  const rest=events.filter(e=>e.date===ds&&!members.find(m=>m.id===e.member_id));
+  const devs=[...sorted,...rest];
   let h=devs.map(ev=>{
     const mem=members.find(x=>x.id===ev.member_id);
     const c=mem?mem.color:COLS[0];
-    return `<div class="ecard" style="background:${gbg(c)};border-left-color:${c}">
-      <div class="ename">${mem?mem.name:''}</div>
-      <div class="etitle" style="color:${gtx(c)}">${ev.title}</div>
-      ${ev.note?`<div class="ememo">${ev.note}</div>`:''}
-      <button class="edel" onclick="delEv('${ev.id}','${ds}')">削除</button>
+    return `<div class="ecard-new" style="background:${gbg(c)};border-left:3px solid ${c}" onclick="openEditMemo('${ev.id}','${ds}')">
+      <div style="flex:1;min-width:0">
+        <div class="ename" style="color:${gtx(c)};opacity:0.75">${mem?mem.name:''}</div>
+        <div class="etitle" style="color:${gtx(c)}">${ev.title}</div>
+        ${ev.note?`<div class="ememo" style="color:${gtx(c)};opacity:0.75">${ev.note}</div>`:''}
+      </div>
+      <button class="edel-new" style="color:${gtx(c)};background:${c}33" onclick="event.stopPropagation();delEv('${ev.id}','${ds}')">🗑</button>
     </div>`;
   }).join('');
   if(!h) h='<div class="empty">予定なし</div>';
   showModal(`
     <div class="mhd"><span class="mttl">${lbl}</span><button class="xbtn" onclick="closeModal()">✕</button></div>
-    ${h}
     <div class="addrow" onclick="openAdd('${ds}')">＋ 予定を追加</div>
+    ${h}
   `);
+}
+
+function openEditMemo(evId,ds){
+  const ev=events.find(e=>e.id===evId);
+  if(!ev)return;
+  const mem=members.find(m=>m.id===ev.member_id);
+  const c=mem?mem.color:COLS[0];
+  showModal(`
+    <div class="mhd">
+      <span class="mttl" style="display:flex;align-items:center;gap:6px">
+        <span style="width:10px;height:10px;border-radius:50%;background:${c};flex-shrink:0;display:inline-block"></span>
+        ${ev.title}
+      </span>
+      <button class="xbtn" onclick="openDay('${ds}')">✕</button>
+    </div>
+    <div class="fsec">
+      <span class="flbl">メモ</span>
+      <textarea id="_ememo" class="memoin" placeholder="メモを入力...">${ev.note||''}</textarea>
+    </div>
+    <button class="subbtn" onclick="saveMemo('${evId}','${ds}')">保存する</button>
+    <button class="secbtn" onclick="openDay('${ds}')">キャンセル</button>
+  `);
+}
+
+async function saveMemo(evId,ds){
+  const note=(document.getElementById('_ememo')||{}).value||'';
+  try{
+    await api('events?id=eq.'+evId,'PATCH',{note:note.trim()||null});
+    await load();
+    openDay(ds);
+  }catch(e){alert('保存エラー: '+e.message);}
 }
 
 function openAdd(ds){
@@ -499,7 +540,7 @@ function tapChip(id,title,date){
 
 function setFilter(mid){
   filterMid=filterMid===mid?'':mid;
-  renderFilterMembers();
+  renderLeg();
   renderCal();
 }
 
@@ -615,7 +656,7 @@ function gotoView(v){
   document.getElementById('bncal').classList.toggle('act',v==='calendar');
   document.getElementById('bnset').classList.toggle('act',v==='settings');
   document.getElementById('hnav').style.display=v==='calendar'?'flex':'none';
-  document.getElementById('legend').style.display=v==='calendar'?'flex':'none';
+  document.getElementById('member-bar').style.display=v==='calendar'?'flex':'none';
   if(v!=='calendar'&&stampMode)toggleStamp();
   if(v!=='calendar'){filterMid='';}
   closeModal();
