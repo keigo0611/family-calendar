@@ -147,7 +147,7 @@ function mcol(mid){
 async function load(){
   try{
     const [m,s,e]=await Promise.all([
-      api('members?select=*&order=created_at'),
+      api('members?select=*&order=order_index,created_at'),
       api('shift_patterns?select=*&order=created_at'),
       api('events?select=*&order=date')
     ]);
@@ -206,7 +206,7 @@ function renderCal(){
     for(let d=0;d<7;d++){
       const day=new Date(ws); day.setDate(ws.getDate()+d);
       const ds=toYMD(day); const dow=day.getDay();
-      const devs=events.filter(e=>e.date===ds);
+      const devs=members.flatMap(m=>events.filter(e=>e.date===ds&&e.member_id===m.id)).concat(events.filter(e=>e.date===ds&&!members.find(m=>m.id===e.member_id)));
       h+=`<div class="dcell${ds===todayStr?' today':''}" onclick="handleCellTap('${ds}')" oncontextmenu="handleCellLong('${ds}');return false" ontouchstart="startLong('${ds}',event)" ontouchend="endLong()" ontouchmove="endLong()">`;
       h+=`<div class="dnum${dow===0?' sun':dow===6?' sat':''}">${day.getDate()}</div>`;
       devs.slice(0,8).forEach(ev=>{
@@ -469,11 +469,12 @@ function renderSet(){
     const newIdx=idx+dir;
     if(newIdx<0||newIdx>=members.length) return;
     const a=members[idx], b=members[newIdx];
-    const tmpName=a.name, tmpColor=a.color;
+    const oi_a=a.order_index!=null?a.order_index:idx;
+    const oi_b=b.order_index!=null?b.order_index:newIdx;
     try{
       await Promise.all([
-        api('members?id=eq.'+a.id,'PATCH',{name:b.name,color:b.color}),
-        api('members?id=eq.'+b.id,'PATCH',{name:tmpName,color:tmpColor})
+        api('members?id=eq.'+a.id,'PATCH',{order_index:oi_b}),
+        api('members?id=eq.'+b.id,'PATCH',{order_index:oi_a})
       ]);
       await load();
     }catch(e){alert('並び替えエラー: '+e.message);}
