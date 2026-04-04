@@ -107,7 +107,7 @@ html,body{height:100%;overflow:hidden;font-family:-apple-system,BlinkMacSystemFo
     <div id="member-bar" style="margin-top:6px;overflow-x:auto;white-space:nowrap;padding-bottom:2px;display:flex;gap:4px;align-items:center"><span id="member-btns-hdr"></span></div>
     <div id="stamp-bar" style="display:none;margin-top:4px;overflow-x:auto;white-space:nowrap;padding-bottom:2px"><span style="font-size:10px;color:rgba(255,255,255,0.6);margin-right:4px">登録者:</span><span id="stamp-members"></span></div>
   </div>
-  <div class="main" id="main"><div class="center">読み込み中...</div></div>
+  <div class="main" id="main" ontouchstart="swipeStart(event)" ontouchend="swipeEnd(event)"><div class="center">読み込み中...</div></div>
   <div class="bnav">
     <button class="act" id="bncal" onclick="gotoView('calendar')"><span class="bico">📅</span>カレンダー</button>
     <button id="bnset" onclick="gotoView('settings')"><span class="bico">⚙️</span>設定</button>
@@ -221,7 +221,13 @@ function renderCal(){
     }
     h+='</div></div>';
   }
-  document.getElementById('main').innerHTML=h;
+  const nav=`<div style="display:flex;justify-content:center;padding:4px 0">
+    <button onclick="prevP()" style="background:rgba(0,0,0,0.06);border:none;border-radius:20px;padding:6px 24px;cursor:pointer;font-size:16px;color:#666">▲ 前の2週間</button>
+  </div>`;
+  const nav2=`<div style="display:flex;justify-content:center;padding:4px 0 8px">
+    <button onclick="nextP()" style="background:rgba(0,0,0,0.06);border:none;border-radius:20px;padding:6px 24px;cursor:pointer;font-size:16px;color:#666">▼ 次の2週間</button>
+  </div>`;
+  document.getElementById('main').innerHTML=(view==='2w'?nav:'')+h+(view==='2w'?nav2:'');
 }
 
 function openDay(ds){
@@ -532,6 +538,7 @@ function renderSet(){
 let stampMode=false,stampMid='',longTimer=null,filterMid='';
 
 function tapChip(id,title,date){
+  if(!stampMode) return;
   if(confirm(`「${title}」を削除しますか？`)){
     api('events?id=eq.'+id,'DELETE')
       .then(()=>load())
@@ -673,6 +680,24 @@ function setView(v){
 }
 function prevP(){offset--;if(curView==='calendar')renderCal();}
 function nextP(){offset++;if(curView==='calendar')renderCal();}
+
+let swY0=0, swT0=0, swScrollY=0;
+function swipeStart(e){
+  if(curView!=='calendar'||view!=='2w') return;
+  swY0=e.touches[0].clientY;
+  swT0=Date.now();
+  swScrollY=document.getElementById('main').scrollTop;
+}
+function swipeEnd(e){
+  if(curView!=='calendar'||view!=='2w') return;
+  const dy=e.changedTouches[0].clientY-swY0;
+  const dt=Date.now()-swT0;
+  const scrolled=Math.abs(document.getElementById('main').scrollTop-swScrollY);
+  if(scrolled>10) return;
+  if(Math.abs(dy)<60||dt>600) return;
+  if(dy>0) prevP();
+  else nextP();
+}
 
 function showModal(h){
   const el=document.getElementById('modal');
